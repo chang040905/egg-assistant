@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小蛋助手</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <div id="titlebar">
+    <div class="titlebar-drag">
+      <span class="titlebar-icon">💬</span>
+      <span class="titlebar-title">小蛋助手</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="tb-btn tb-theme" onclick="toggleTheme()" title="切换主题">🌓</button>
+      <button class="tb-btn tb-minimize" onclick="window.api.windowMinimize()">─</button>
+      <button class="tb-btn tb-maximize" onclick="window.api.windowMaximize()">□</button>
+      <button class="tb-btn tb-close" onclick="window.api.windowClose()">✕</button>
+    </div>
+  </div>
+
+  <!-- 主体容器 -->
+  <div id="app-body">
+    <!-- 侧边栏 -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <h2>对话</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="batch-close-btn" class="icon-btn icon-md" title="关闭" style="display:none" onclick="exitBatchMode()"><img src="../icons/关闭.png"></button>
+          <button id="batch-selectall-btn" class="icon-btn icon-md" title="全选" style="display:none" onclick="toggleSelectAll()"><img src="../icons/全选.png"></button>
+          <button id="batch-delete-btn" class="icon-btn icon-md" title="删除选中" style="display:none" onclick="batchDelete()"><img src="../icons/删除.png"></button>
+          <button id="batch-btn" class="icon-btn icon-md" title="批量管理" onclick="enterBatchMode()"><img src="../icons/批量删除.png"></button>
+          <button id="new-chat-btn" class="icon-btn icon-lg" title="新建对话"><img src="../icons/添加对话.png"></button>
+        </div>
+      </div>
+      <div id="conversation-list"></div>
+      <div class="sidebar-footer">
+        <button id="settings-btn" class="settings-fab" title="设置"><img src="../icons/设置.png"></button>
+      </div>
+    </aside>
+
+    <!-- 主区域 -->
+    <main id="main-area">
+      <div id="empty-state">
+        <div class="empty-icon">💬</div>
+        <h2>开始新对话</h2>
+        <p>选择或新建一个对话，选择模型后开始聊天</p>
+      </div>
+
+      <div id="chat-area" style="display:none;">
+        <div class="chat-header">
+          <button id="sidebar-toggle" title="切换侧边栏">☰</button>
+          <span id="chat-title">新对话</span>
+        </div>
+        <div id="messages"></div>
+        <div class="input-area">
+          <textarea id="user-input" placeholder="输入消息... (Enter发送, Shift+Enter换行)" rows="1"></textarea>
+          <button id="send-btn" class="icon-btn" title="发送"><img src="../icons/确认.png" style="width:22px;height:22px"></button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 模型管理弹窗 -->
+  <div id="model-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>模型管理</h3>
+        <button class="close-btn" onclick="closeModal('model-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="model-list"></div>
+        <button id="add-model-btn" class="primary-btn">＋ 添加模型</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模型编辑弹窗 -->
+  <div id="model-edit-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="model-edit-title">添加模型</h3>
+        <button class="close-btn" onclick="closeModal('model-edit-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>预设 <select id="me-preset" onchange="applyPreset()">
+          <option value="">自定义</option>
+          <option value="deepseek">DeepSeek (V4-Flash)</option>
+          <option value="deepseek_pro">DeepSeek (V4-Pro)</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude (OpenAI兼容)</option>
+          <option value="glm">智谱 GLM</option>
+          <option value="qwen">通义千问</option>
+          <option value="moonshot">Moonshot</option>
+          <option value="groq">Groq</option>
+          <option value="ollama">Ollama (本地)</option>
+        </select></label>
+        <label>名称 <input id="me-name" placeholder="如：DeepSeek-V4"></label>
+        <label>API 地址 <input id="me-endpoint" placeholder="如：https://api.deepseek.com/chat/completions"></label>
+        <label>API Key <input id="me-key" type="password" placeholder="sk-...（Ollama留空即可）"></label>
+        <label>模型ID <input id="me-model" placeholder="如：deepseek-v4-flash"></label>
+        <div class="param-advanced-toggle" onclick="toggleAdvancedParams()">模型参数 ▼</div>
+        <div id="advanced-params" class="param-grid advanced-hidden">
+          <label>创意度 <input id="me-temp" type="number" min="0" max="2" step="0.1" value="0.7"></label>
+          <label>最大回复长度 <input id="me-tokens" type="number" min="100" max="128000" step="100" value="128000"></label>
+          <label>最大上下文轮数 <input id="me-ctx" type="number" min="0" max="50" step="1" value="0" placeholder="0=不限制"></label>
+          <label>Top P <input id="me-topp" type="number" min="0" max="1" step="0.05" value="1"></label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-btn" onclick="closeModal('model-edit-modal')">取消</button>
+          <button id="me-save" class="primary-btn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置弹窗（预留） -->
+  <div id="settings-modal" class="modal" style="display:none;">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>设置</h3>
+        <button class="close-btn" onclick="closeModal('settings-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <button class="settings-action-btn" onclick="closeModal('settings-modal'); openModal('model-modal')"><img src="../icons/模型.png" style="width:20px;height:20px"> 模型设置</button>
+        <div style="height:10px"></div>
+        <button class="settings-action-btn" onclick="openModal('export-modal')"><img src="../icons/导出对话.png" style="width:20px;height:20px"> 导出聊天记录</button>
+        <div style="margin-top:auto; padding-top:24px; text-align:center; color:var(--text-tertiary); font-size:12px; user-select:none">
+          <div style="font-weight:600; margin-bottom:2px">小蛋助手</div>
+          <div>v1.0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出聊天记录弹窗 -->
+
+  <!-- 对话编辑弹窗 -->
+  <div id="conv-edit-modal" class="modal" style="display:none;">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>对话设置</h3>
+        <button class="close-btn" onclick="closeModal('conv-edit-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>选择模型 <select id="ce-model"></select></label>
+        <label>系统提示词 <textarea id="ce-prompt" rows="6" placeholder="为当前对话设置系统提示词..." style="resize:none"></textarea></label>
+        <div class="modal-actions">
+          <button class="secondary-btn" onclick="closeModal('conv-edit-modal')">取消</button>
+          <button id="ce-save" class="primary-btn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出聊天记录弹窗 -->
+  <div id="export-modal" class="modal" style="display:none;">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>导出聊天记录</h3>
+        <button class="close-btn" onclick="closeModal('export-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>选择对话 <select id="ex-conv"></select></label>
+        <label>导出格式 <select id="ex-format">
+          <option value="html">HTML 网页</option>
+          <option value="txt">TXT 纯文本</option>
+          <option value="md">Markdown</option>
+          <option value="json">JSON</option>
+        </select></label>
+        <div class="modal-actions">
+          <button class="secondary-btn" onclick="closeModal('export-modal')">取消</button>
+          <button id="ex-save" class="primary-btn">导出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

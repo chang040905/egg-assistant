@@ -1,0 +1,46 @@
+{
+  "name": "xiaodan-assistant",
+  "version": "1.0.0",
+  "description": "小蛋助手 - 多模型AI对话",
+  "main": "main.js",
+  "author": "常国涵",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.xiaodan.app",
+    "productName": "小蛋助手",
+    "icon": "icon.png",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"],
+      "signAndEditExecutable": false,
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "小蛋助手",
+      "installerLanguages": ["zh-CN"],
+      "language": "2052"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "icons/**/*",
+      "fonts/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.8.1"
+  }
+}
